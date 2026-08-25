@@ -7,6 +7,7 @@ import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import ThemeToggle from "@/components/ThemeToggle";
+import toast from "react-hot-toast";
 import {
   LayoutDashboard, Package, ShoppingCart, MapPin, Users, PenSquare,
   LogOut, Menu, X, ChevronRight,
@@ -22,10 +23,11 @@ const navItems = [
 ];
 
 // This layout is the single source of truth for "is someone allowed to see
-// admin pages". It never renders a login form itself — if there's no user,
-// it redirects to the separate /login route and renders nothing while that
-// happens, so there's no chance of the sign-in screen flashing underneath
-// an already-authenticated session.
+// admin pages". A signed-in Firebase account is not enough — it must also
+// carry the `admin: true` custom claim, or it gets signed out and bounced
+// to /login. This mirrors the check on the login page itself, so someone
+// with a lingering non-admin session can't reach a protected page by
+// navigating straight to a URL like /dashboard.
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser]         = useState<User | null>(null);
   const [checked, setChecked]   = useState(false);
@@ -34,7 +36,18 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        const token = await u.getIdTokenResult(true);
+        if (!token.claims.admin) {
+          await signOut(auth);
+          toast.error("This account does not have admin access.");
+          setUser(null);
+          setChecked(true);
+          router.replace("/login");
+          return;
+        }
+      }
       setUser(u);
       setChecked(true);
       if (!u) router.replace("/login");

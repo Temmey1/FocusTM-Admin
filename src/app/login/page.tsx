@@ -3,10 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import ThemeToggle from "@/components/ThemeToggle";
+
+// A Firebase account existing (e.g. a customer who registered on the
+// store) is not enough to get into the admin panel — only accounts with
+// the `admin: true` custom claim are allowed in. This claim is set once,
+// manually, via POST /auth/make-admin (see backend README). Anyone else
+// gets signed back out immediately, right here, before ever seeing the
+// dashboard shell.
+async function isAdminAccount(user: import("firebase/auth").User) {
+  const token = await user.getIdTokenResult(true); // force refresh, avoid stale claims
+  return !!token.claims.admin;
+}
 
 export default function LoginPage() {
   const [email, setEmail]       = useState("");
@@ -15,13 +26,17 @@ export default function LoginPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
 
-  // If a session already exists (e.g. the person navigated back to /login,
-  // or this loaded before the auth SDK finished restoring the session),
-  // send them straight to the dashboard instead of showing the form again.
+  // If a session already exists (e.g. the person navigated back to /login),
+  // verify it's actually an admin before sending them to the dashboard —
+  // otherwise sign them out and let them see the login form.
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
-      if (u) router.replace("/dashboard");
-      else setCheckingSession(false);
+    return onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        const admin = await isAdminAccount(u);
+        if (admin) { router.replace("/dashboard"); return; }
+        await signOut(auth);
+      }
+      setCheckingSession(false);
     });
   }, [router]);
 
@@ -29,7 +44,13 @@ export default function LoginPage() {
     if (!email || !password) { toast.error("Enter your email and password."); return; }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const admin = await isAdminAccount(cred.user);
+      if (!admin) {
+        await signOut(auth);
+        toast.error("This account does not have admin access.");
+        return;
+      }
       router.replace("/dashboard");
     } catch (err: any) {
       toast.error(err.code === "auth/invalid-credential" ? "Invalid email or password." : "Login failed. Try again.");
