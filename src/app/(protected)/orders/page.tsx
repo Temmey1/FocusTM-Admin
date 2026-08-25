@@ -14,7 +14,7 @@ const statusStyle: Record<OrderStatus,string> = {
   completed: "border-ftm-white text-ftm-white", cancelled: "border-red-800 text-red-400",
 };
 
-const STORE_URL = process.env.NEXT_PUBLIC_STORE_URL || "http://localhost:3000";
+const STORE_URL = process.env.NEXT_PUBLIC_STORE_URL;
 
 function TableSkeleton() {
   return <div className="border border-ftm-line p-1">{Array.from({length:6}).map((_,i)=><div key={i} className="h-14 ftm-skeleton my-1" />)}</div>;
