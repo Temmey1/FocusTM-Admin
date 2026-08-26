@@ -88,7 +88,17 @@ export default function ProductsPage() {
     const mergedImages = Array.from(
       new Set([...(form.images || []), ...imagesFromUrls]),
     );
-    const payload = { ...form, sizes, colors, images: mergedImages };
+    // `form` for an edit is spread straight from a product the API returned,
+    // which includes server-owned fields (id, createdAt, updatedAt, __v).
+    // The backend's ValidationPipe correctly rejects any of those showing
+    // up in a create/update body, so only send the fields the DTOs accept.
+    const {
+      name, slug, description, price, category, customizable, featured, stock,
+    } = form as any;
+    const payload = {
+      name, slug, description, price, category, customizable, featured, stock,
+      sizes, colors, images: mergedImages,
+    };
     setSaving(true);
     try {
       if (modal === "add") {

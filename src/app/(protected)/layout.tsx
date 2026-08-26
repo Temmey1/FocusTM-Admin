@@ -7,6 +7,7 @@ import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationToggle from "@/components/NotificationToggle";
 import toast from "react-hot-toast";
 import {
   LayoutDashboard, Package, ShoppingCart, MapPin, Users, PenSquare,
@@ -115,6 +116,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           <span className="text-[10px] uppercase tracking-[0.25em] text-ftm-muted">{activeLabel}</span>
           <div className="ml-auto flex items-center gap-4">
             <span className="text-[9px] text-ftm-dim hidden sm:inline">Excellence Is The Standard</span>
+            <NotificationToggle />
             <ThemeToggle />
           </div>
         </header>
