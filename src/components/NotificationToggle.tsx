@@ -9,9 +9,21 @@ export default function NotificationToggle({ className = "" }: { className?: str
   const { status, busy, enable, disable, sendTest } = usePushNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  if (status === "unsupported" || status === "checking") return null;
+  // "checking" is a brief transient state on first render — fine to hide.
+  // "unsupported" is not transient (e.g. iOS Safari outside of a
+  // home-screen PWA has no Notification API at all) — hiding the bell
+  // entirely there just makes it look broken/missing. Show it disabled
+  // with an explanation instead.
+  if (status === "checking") return null;
 
   const handleClick = async () => {
+    if (status === "unsupported") {
+      toast.error(
+        "This browser doesn't support push notifications. On iPhone, add FocusTM Admin to your Home Screen first (Share → Add to Home Screen), then open it from there and try again. Works out of the box on Android Chrome and desktop browsers.",
+        { duration: 6000 },
+      );
+      return;
+    }
     if (status === "denied") {
       toast.error("Notifications are blocked for this site — enable them in your browser's site settings.");
       return;
@@ -40,7 +52,7 @@ export default function NotificationToggle({ className = "" }: { className?: str
     }
   };
 
-  const Icon = status === "enabled" ? BellRing : status === "denied" ? BellOff : Bell;
+  const Icon = status === "enabled" ? BellRing : status === "denied" || status === "unsupported" ? BellOff : Bell;
 
   return (
     <div className={`relative ${className}`}>
@@ -49,7 +61,7 @@ export default function NotificationToggle({ className = "" }: { className?: str
         disabled={busy}
         aria-label="Order notifications"
         className={`h-8 w-8 flex items-center justify-center transition-colors duration-200 disabled:opacity-40 ${
-          status === "enabled" ? "text-ftm-white" : "text-ftm-muted hover:text-ftm-white"
+          status === "enabled" ? "text-ftm-white" : status === "unsupported" ? "text-ftm-dim" : "text-ftm-muted hover:text-ftm-white"
         }`}
       >
         <Icon className="h-[16px] w-[16px]" />
